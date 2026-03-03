@@ -75,8 +75,7 @@ class PlatformParser(Star):
         parts = message_str.split(maxsplit=1)
         
         if len(parts) < 2:
-            yield event.plain_result("❌ 请提供视频链接\n用法：/parse <视频URL>")
-            return
+            return event.plain_result("❌ 请提供视频链接\n用法：/parse <视频URL>")
             
         video_url = parts[1].strip()
         
@@ -86,10 +85,9 @@ class PlatformParser(Star):
             if not all([parsed_url.scheme, parsed_url.netloc]):
                 raise ValueError("Invalid URL")
         except ValueError:
-            yield event.plain_result("❌ 无效的URL格式")
-            return
+            return event.plain_result("❌ 无效的URL格式")
             
-        yield event.plain_result("🔄 正在解析视频...")
+        return event.plain_result("🔄 正在解析视频...")
         
         try:
             response = requests.post(
@@ -102,16 +100,16 @@ class PlatformParser(Star):
             if response.status_code == 200:
                 result = response.json()
                 result_str = json.dumps(result, indent=2, ensure_ascii=False)
-                yield event.plain_result(f"✅ 解析成功！\n```json\n{result_str}\n```")
+                return event.plain_result(f"✅ 解析成功！\n```json\n{result_str}\n```")
             else:
-                yield event.plain_result(f"❌ 解析失败：HTTP {response.status_code}\n{response.text}")
+                return event.plain_result(f"❌ 解析失败：HTTP {response.status_code}\n{response.text}")
                 
         except requests.exceptions.Timeout:
-            yield event.plain_result("❌ 请求超时，请稍后重试")
+            return event.plain_result("❌ 请求超时，请稍后重试")
         except requests.exceptions.ConnectionError:
-            yield event.plain_result("❌ 无法连接到解析服务")
+            return event.plain_result("❌ 无法连接到解析服务")
         except Exception as e:
-            yield event.plain_result(f"❌ 解析出错：{str(e)}")
+            return event.plain_result(f"❌ 解析出错：{str(e)}")
     
     @filter.command("api_status")
     async def api_status_command(self, event: AstrMessageEvent, *args):
@@ -119,11 +117,11 @@ class PlatformParser(Star):
         try:
             response = requests.get(f"{self.api_base_url}/openapi.json", timeout=10)
             if response.status_code == 200:
-                yield event.plain_result("✅ 解析API服务正常")
+                return event.plain_result("✅ 解析API服务正常")
             else:
-                yield event.plain_result(f"⚠️ API服务响应异常：HTTP {response.status_code}")
+                return event.plain_result(f"⚠️ API服务响应异常：HTTP {response.status_code}")
         except Exception as e:
-            yield event.plain_result(f"❌ 无法连接到API服务：{str(e)}")
+            return event.plain_result(f"❌ 无法连接到API服务：{str(e)}")
     
     @filter.command("help_parse")
     async def help_command(self, event: AstrMessageEvent, *args):
@@ -142,7 +140,7 @@ class PlatformParser(Star):
 API地址：http://119.45.171.58:10010
 版本: {get_version()}
         """
-        yield event.plain_result(help_text.strip())
+        return event.plain_result(help_text.strip())
     
     @filter.command("sphe")
     async def sphe_command(self, event: AstrMessageEvent, *args):
@@ -159,7 +157,7 @@ API地址：http://119.45.171.58:10010
 
 📍 API: http://119.45.171.58:10010
         """
-        yield event.plain_result(help_text.strip())
+        return event.plain_result(help_text.strip())
         logger.info("sphe 命令处理完成")
 
     @filter.command("test")
@@ -167,7 +165,7 @@ API地址：http://119.45.171.58:10010
         """测试插件状态"""
         user_name = event.get_sender_name()
         logger.info(f"收到 test 命令，来自用户: {user_name}")
-        yield event.plain_result(f"✅ 插件工作正常！\n👋 你好 {user_name}\n📊 当前版本: {get_version()}")
+        return event.plain_result(f"✅ 插件工作正常！\n👋 你好 {user_name}\n📊 当前版本: {get_version()}")
         logger.info("test 命令处理完成")
 
     async def terminate(self):
