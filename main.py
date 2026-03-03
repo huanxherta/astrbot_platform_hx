@@ -6,7 +6,11 @@ AstrBot Platform Parser Plugin
 import requests
 import json
 import re
+import logging
 from urllib.parse import urlparse
+
+# 设置日志
+logger = logging.getLogger(__name__)
 
 # 尝试不同的导入路径
 try:
@@ -33,6 +37,7 @@ if USE_STAR_API:
         def __init__(self, context: Context):
             self.context = context
             self.api_base_url = "http://119.45.171.58:10010"
+            logger.info("PlatformParser 插件初始化完成")
             
         @filter.command("parse", "解析视频链接")
         async def parse_command(self, event):
@@ -112,6 +117,7 @@ API地址：http://119.45.171.58:10010
         @filter.command("sphe", "快速帮助")
         async def sphe_command(self, event):
             """快速显示插件帮助"""
+            logger.info("收到 sphe 命令")
             help_text = """
 🎥 视频解析插件
 
@@ -123,6 +129,7 @@ API地址：http://119.45.171.58:10010
 📍 API: http://119.45.171.58:10010
             """
             await self._send_message(event, help_text.strip())
+            logger.info("sphe 命令处理完成")
         
         def _get_message_text(self, event):
             """获取消息文本的兼容方法"""
@@ -140,18 +147,33 @@ API地址：http://119.45.171.58:10010
             """发送消息的兼容方法"""
             try:
                 # 尝试多种可能的发送方法
+                logger.info(f"尝试发送消息: {message[:50]}...")
                 if hasattr(event, 'send'):
+                    logger.info("使用 event.send 方法")
                     await event.send(message)
                 elif hasattr(event, 'reply'):
+                    logger.info("使用 event.reply 方法")
                     await event.reply(message)
                 elif hasattr(event, 'message') and hasattr(event.message, 'reply'):
+                    logger.info("使用 event.message.reply 方法")
                     await event.message.reply(message)
                 elif hasattr(self.context, 'send_message'):
+                    logger.info("使用 context.send_message 方法")
                     await self.context.send_message(message)
                 else:
+                    logger.warning("无法找到发送消息的方法")
                     print(f"无法发送消息: {message}")
             except Exception as e:
+                logger.error(f"发送消息失败: {e}")
                 print(f"发送消息失败: {e}")
+        
+        # 添加一个通用的消息处理器来调试
+        @filter.command("test", "测试命令")
+        async def test_command(self, event):
+            """测试命令是否工作"""
+            logger.info("收到 test 命令")
+            await self._send_message(event, "✅ 插件工作正常！")
+            logger.info("test 命令处理完成")
 
 else:
     # 使用Plugin类的方式
