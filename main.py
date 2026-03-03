@@ -102,9 +102,25 @@ if USE_STAR_API:
 • /parse <视频URL> - 解析视频链接
 • /api_status - 检查API服务状态  
 • /help_parse - 显示此帮助信息
+• /sphe - 快速显示插件帮助
 
 支持的平台：所有平台
 API地址：http://119.45.171.58:10010
+            """
+            await self._send_message(event, help_text.strip())
+        
+        @filter.command("sphe", "快速帮助")
+        async def sphe_command(self, event):
+            """快速显示插件帮助"""
+            help_text = """
+🎥 视频解析插件
+
+▪️ /parse <视频URL> - 解析视频
+▪️ /api_status - API状态
+▪️ /help_parse - 详细帮助
+▪️ /sphe - 快速帮助
+
+📍 API: http://119.45.171.58:10010
             """
             await self._send_message(event, help_text.strip())
         
@@ -208,8 +224,22 @@ else:
 • /parse <视频URL> - 解析视频链接
 • /api_status - 检查API服务状态  
 • /help_parse - 显示此帮助信息
+• /sphe - 快速显示插件帮助
 
 支持的平台：所有平台
 API地址：http://119.45.171.58:10010
+                """
+                await event.reply(help_text.strip())
+            
+            elif content == '/sphe':
+                help_text = """
+🎥 视频解析插件
+
+▪️ /parse <视频URL> - 解析视频
+▪️ /api_status - API状态
+▪️ /help_parse - 详细帮助
+▪️ /sphe - 快速帮助
+
+📍 API: http://119.45.171.58:10010
                 """
                 await event.reply(help_text.strip())
