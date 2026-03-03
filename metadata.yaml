@@ -1,10 +1,10 @@
-name: astrbot_platform_hx
-version: 1.0.0
-description: "解析部分平台API的插件"
+name: "astrbot_platform_hx"
 author: "hx"
-repo: https://github.com/huanxherta/astrbot_platform_hx.git
-entry: main.py
-astrbot_version: ">=4.16,<5"
+desc: "解析部分平台API的插件"
+version: "1.0.0"
+repo: "https://github.com/huanxherta/astrbot_platform_hx.git"
+entry: "main.py"
+icon: "icon.png"
 supported_platforms:
   - "all"
 permissions:
