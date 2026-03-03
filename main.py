@@ -69,7 +69,7 @@ class PlatformParser(Star):
         logger.info("PlatformParser 插件启动完成")
 
     @filter.command("parse")
-    async def parse_command(self, event: AstrMessageEvent, *args):
+    async def parse_command(self, event: AstrMessageEvent):
         """解析视频链接"""
         message_str = event.message_str
         parts = message_str.split(maxsplit=1)
@@ -112,7 +112,7 @@ class PlatformParser(Star):
             return event.plain_result(f"❌ 解析出错：{str(e)}")
     
     @filter.command("api_status")
-    async def api_status_command(self, event: AstrMessageEvent, *args):
+    async def api_status_command(self, event: AstrMessageEvent):
         """检查解析API服务状态"""
         try:
             response = requests.get(f"{self.api_base_url}/openapi.json", timeout=10)
@@ -124,7 +124,7 @@ class PlatformParser(Star):
             return event.plain_result(f"❌ 无法连接到API服务：{str(e)}")
     
     @filter.command("help_parse")
-    async def help_command(self, event: AstrMessageEvent, *args):
+    async def help_command(self, event: AstrMessageEvent):
         """显示详细帮助信息"""
         help_text = f"""
 🎥 视频解析插件帮助 (v{get_version()})
@@ -143,7 +143,7 @@ API地址：http://119.45.171.58:10010
         return event.plain_result(help_text.strip())
     
     @filter.command("sphe")
-    async def sphe_command(self, event: AstrMessageEvent, *args):
+    async def sphe_command(self, event: AstrMessageEvent):
         """快速显示插件帮助"""
         logger.info("收到 sphe 命令")
         help_text = f"""
@@ -161,7 +161,7 @@ API地址：http://119.45.171.58:10010
         logger.info("sphe 命令处理完成")
 
     @filter.command("test")
-    async def test_command(self, event: AstrMessageEvent, *args):
+    async def test_command(self, event: AstrMessageEvent):
         """测试插件状态"""
         user_name = event.get_sender_name()
         logger.info(f"收到 test 命令，来自用户: {user_name}")
