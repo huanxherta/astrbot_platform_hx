@@ -134,7 +134,7 @@ API地址：http://119.45.171.58:10010
         def _get_message_text(self, event):
             """获取消息文本的兼容方法"""
             # 尝试多种可能的属性名
-            for attr in ['message_str', 'content', 'text', 'message']:
+            for attr in ['message_str', 'content', 'text', 'message', 'raw_message']:
                 if hasattr(event, attr):
                     value = getattr(event, attr)
                     if hasattr(value, 'strip'):  # 确保是字符串
@@ -142,6 +142,27 @@ API地址：http://119.45.171.58:10010
                     elif hasattr(value, 'text'):  # 如果是消息对象
                         return value.text.strip()
             return ""
+        
+        def _get_session_type(self, event):
+            """获取会话类型（私聊/群聊）"""
+            # 尝试多种可能的属性名
+            if hasattr(event, 'session_type'):
+                return event.session_type
+            elif hasattr(event, 'detail_type'):
+                return event.detail_type
+            elif hasattr(event, 'message_type'):
+                return event.message_type
+            elif hasattr(event, 'ctx') and isinstance(event.ctx, dict):
+                return event.ctx.get('session_type') or event.ctx.get('detail_type') or event.ctx.get('message_type')
+            return 'unknown'
+        
+        def _strip_command_prefix(self, text):
+            """移除命令前缀"""
+            prefixes = ['/', '!', '.', '~']
+            for prefix in prefixes:
+                if text.startswith(prefix):
+                    return text[len(prefix):]
+            return text
         
         async def _send_message(self, event, message):
             """发送消息的兼容方法"""
@@ -171,9 +192,60 @@ API地址：http://119.45.171.58:10010
         @filter.command("test", "测试命令")
         async def test_command(self, event):
             """测试命令是否工作"""
-            logger.info("收到 test 命令")
-            await self._send_message(event, "✅ 插件工作正常！")
+            session_type = self._get_session_type(event)
+            logger.info(f"收到 test 命令，会话类型: {session_type}")
+            await self._send_message(event, f"✅ 插件工作正常！会话类型: {session_type}")
             logger.info("test 命令处理完成")
+        
+        # 添加一个通用的消息处理器来处理无前缀命令（主要用于私聊）
+        # 注意：这个装饰器可能不存在，先注释掉，如果需要可以尝试其他方式
+        # @filter.message()
+        async def handle_message(self, event):
+            """处理普通消息，支持无前缀命令"""
+            message_text = self._get_message_text(event)
+            session_type = self._get_session_type(event)
+            
+            logger.info(f"收到消息: {message_text}, 会话类型: {session_type}")
+            
+            # 在私聊中支持无前缀命令
+            if session_type in ['private', 'friend']:
+                clean_text = self._strip_command_prefix(message_text.strip())
+                
+                # 检查是否是我们的命令
+                if clean_text == 'test' or clean_text == 'sphe':
+                    logger.info(f"私聊无前缀命令: {clean_text}")
+                    if clean_text == 'test':
+                        await self._send_message(event, "✅ 插件工作正常！私聊无前缀命令测试成功！")
+                    elif clean_text == 'sphe':
+                        help_text = """
+🎥 视频解析插件（私聊模式）
+
+▪️ test 或 /test - 测试插件
+▪️ sphe 或 /sphe - 快速帮助
+▪️ /parse <URL> - 解析视频
+▪️ /api_status - API状态
+
+📍 API: http://119.45.171.58:10010
+                        """
+                        await self._send_message(event, help_text.strip())
+                    return
+            
+            # 在群聊中，也可以尝试处理无前缀命令（可选）
+            elif session_type in ['group', 'supergroup']:
+                clean_text = self._strip_command_prefix(message_text.strip())
+                if clean_text == 'sphe':
+                    logger.info("群聊无前缀 sphe 命令")
+                    help_text = """
+🎥 视频解析插件
+
+▪️ /parse <URL> - 解析视频
+▪️ /api_status - API状态  
+▪️ /sphe - 快速帮助
+
+📍 API: http://119.45.171.58:10010
+                    """
+                    await self._send_message(event, help_text.strip())
+                    return
 
 else:
     # 使用Plugin类的方式
