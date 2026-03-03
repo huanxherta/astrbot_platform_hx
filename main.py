@@ -95,7 +95,7 @@ class PlatformParser(Star):
                 f"{self.api_base_url}/parse",
                 json={"url": video_url},
                 headers={"Content-Type": "application/json"},
-                timeout=10  # 减少超时时间
+                timeout=5  # 进一步减少超时时间
             )
             logger.info(f"API响应状态: {response.status_code}")
             
