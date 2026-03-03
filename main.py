@@ -27,7 +27,7 @@ except ImportError:
         USE_STAR_API = False
 
 if USE_STAR_API:
-    @register("platform_hx", "视频解析API插件")
+    @register("platform_hx", "视频解析API插件", "解析部分平台API的插件", "1.0.0")
     class PlatformParser(Star):
         
         def __init__(self, context: Context):
