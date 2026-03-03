@@ -61,7 +61,7 @@ increment_version()
 class PlatformParser(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-        self.api_base_url = "http://119.45.171.58:10010"
+        self.api_base_url = "http://localhost:10010"  # 使用本地API服务器
         logger.info(f"PlatformParser 插件初始化完成，版本: {get_version()}")
 
     async def initialize(self):
@@ -165,7 +165,7 @@ class PlatformParser(Star):
 • /test - 测试插件状态
 
 支持的平台：所有平台
-API地址：http://119.45.171.58:10010
+API地址：http://localhost:10010 (本地服务器)
 版本: {get_version()}
         """
         return event.plain_result(help_text.strip())
@@ -184,7 +184,7 @@ API地址：http://119.45.171.58:10010
 ▪️ /sphe - 快速帮助
 ▪️ /test - 测试插件
 
-📍 API: http://119.45.171.58:10010
+📍 API: http://localhost:10010 (本地服务器)
         """
         return event.plain_result(help_text.strip())
         logger.info("sphe 命令处理完成")
