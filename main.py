@@ -68,7 +68,7 @@ class PlatformParser(Star):
         """插件异步初始化方法"""
         logger.info("PlatformParser 插件启动完成")
 
-    @filter.command("parse", "解析视频链接")
+    @filter.command("parse")
     async def parse_command(self, event: AstrMessageEvent, *args):
         """解析视频链接"""
         message_str = event.message_str
@@ -113,7 +113,7 @@ class PlatformParser(Star):
         except Exception as e:
             yield event.plain_result(f"❌ 解析出错：{str(e)}")
     
-    @filter.command("api_status", "检查API服务状态")
+    @filter.command("api_status")
     async def api_status_command(self, event: AstrMessageEvent, *args):
         """检查解析API服务状态"""
         try:
@@ -125,7 +125,7 @@ class PlatformParser(Star):
         except Exception as e:
             yield event.plain_result(f"❌ 无法连接到API服务：{str(e)}")
     
-    @filter.command("help_parse", "解析插件帮助")
+    @filter.command("help_parse")
     async def help_command(self, event: AstrMessageEvent, *args):
         """显示详细帮助信息"""
         help_text = f"""
@@ -144,7 +144,7 @@ API地址：http://119.45.171.58:10010
         """
         yield event.plain_result(help_text.strip())
     
-    @filter.command("sphe", "快速帮助")
+    @filter.command("sphe")
     async def sphe_command(self, event: AstrMessageEvent, *args):
         """快速显示插件帮助"""
         logger.info("收到 sphe 命令")
@@ -162,7 +162,7 @@ API地址：http://119.45.171.58:10010
         yield event.plain_result(help_text.strip())
         logger.info("sphe 命令处理完成")
 
-    @filter.command("test", "测试命令")
+    @filter.command("test")
     async def test_command(self, event: AstrMessageEvent, *args):
         """测试插件状态"""
         user_name = event.get_sender_name()
