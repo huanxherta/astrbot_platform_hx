@@ -90,38 +90,65 @@ class PlatformParser(Star):
         return event.plain_result("🔄 正在解析视频...")
         
         try:
+            logger.info(f"开始解析视频: {video_url}")
             response = requests.post(
                 f"{self.api_base_url}/parse",
                 json={"url": video_url},
                 headers={"Content-Type": "application/json"},
-                timeout=30
+                timeout=10  # 减少超时时间
             )
+            logger.info(f"API响应状态: {response.status_code}")
             
             if response.status_code == 200:
                 result = response.json()
+                logger.info(f"解析结果: {result}")
                 result_str = json.dumps(result, indent=2, ensure_ascii=False)
                 return event.plain_result(f"✅ 解析成功！\n```json\n{result_str}\n```")
             else:
+                logger.error(f"API错误: HTTP {response.status_code}, 响应: {response.text}")
                 return event.plain_result(f"❌ 解析失败：HTTP {response.status_code}\n{response.text}")
                 
         except requests.exceptions.Timeout:
+            logger.error("API请求超时")
             return event.plain_result("❌ 请求超时，请稍后重试")
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"连接错误: {str(e)}")
             return event.plain_result("❌ 无法连接到解析服务")
         except Exception as e:
+            logger.error(f"解析异常: {str(e)}", exc_info=True)
             return event.plain_result(f"❌ 解析出错：{str(e)}")
     
     @filter.command("api_status")
     async def api_status_command(self, event: AstrMessageEvent):
         """检查解析API服务状态"""
         try:
-            response = requests.get(f"{self.api_base_url}/openapi.json", timeout=10)
+            logger.info("检查API服务状态...")
+            response = requests.get(f"{self.api_base_url}/openapi.json", timeout=5)
             if response.status_code == 200:
+                logger.info("API服务正常")
                 return event.plain_result("✅ 解析API服务正常")
             else:
+                logger.error(f"API服务异常: HTTP {response.status_code}")
                 return event.plain_result(f"⚠️ API服务响应异常：HTTP {response.status_code}")
         except Exception as e:
+            logger.error(f"API连接失败: {str(e)}")
             return event.plain_result(f"❌ 无法连接到API服务：{str(e)}")
+    
+    @filter.command("ping_api")
+    async def ping_api_command(self, event: AstrMessageEvent):
+        """测试API连接"""
+        try:
+            logger.info("测试API连接...")
+            response = requests.get(f"{self.api_base_url}/", timeout=3)
+            if response.status_code in [200, 404]:  # 404也表示服务器可达
+                logger.info("API服务器可达")
+                return event.plain_result("✅ API服务器连接正常")
+            else:
+                logger.error(f"API服务器异常: HTTP {response.status_code}")
+                return event.plain_result(f"⚠️ API服务器异常：HTTP {response.status_code}")
+        except Exception as e:
+            logger.error(f"API连接测试失败: {str(e)}")
+            return event.plain_result(f"❌ 无法连接到API服务器：{str(e)}")
     
     @filter.command("help_parse")
     async def help_command(self, event: AstrMessageEvent):
@@ -132,6 +159,7 @@ class PlatformParser(Star):
 命令：
 • /parse <视频URL> - 解析视频链接
 • /api_status - 检查API服务状态  
+• /ping_api - 测试API连接
 • /help_parse - 显示此帮助信息
 • /sphe - 快速显示插件帮助
 • /test - 测试插件状态
@@ -151,6 +179,7 @@ API地址：http://119.45.171.58:10010
 
 ▪️ /parse <视频URL> - 解析视频
 ▪️ /api_status - API状态
+▪️ /ping_api - 测试API连接
 ▪️ /help_parse - 详细帮助
 ▪️ /sphe - 快速帮助
 ▪️ /test - 测试插件
