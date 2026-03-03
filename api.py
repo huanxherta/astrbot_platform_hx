@@ -50,10 +50,36 @@ async def parse_video(item: VideoItem):
                 logger.info(f"🍪 成功加载 Cookie 文件: {cookie_path}")
             else:
                 logger.warning("⚠️ 未找到 Cookie 文件，将尝试匿名解析")
+        else:
+            logger.info("🌐 检测到其他平台链接")
+            # 通用配置
+            ydl_opts.update({
+                'nocheckcertificate': True,
+                'ignoreerrors': True,
+            })
+        elif 'youtube.com' in url or 'youtu.be' in url:
+            logger.info("📺 检测到YouTube链接")
+            # YouTube Cookie配置
+            cookie_path = "www.youtube.com_cookies.txt"
+            if os.path.exists(cookie_path):
+                ydl_opts['cookiefile'] = cookie_path
+                logger.info(f"🍪 成功加载 Cookie 文件: {cookie_path}")
+            else:
+                logger.warning("⚠️ 未找到 Cookie 文件，将尝试匿名解析")
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             # 获取视频信息
-            info = ydl.extract_info(url, download=False)
+            try:
+                info = ydl.extract_info(url, download=False)
+            except Exception as e:
+                logger.error(f"提取信息失败: {str(e)}")
+                # 尝试简单的提取方式
+                info = ydl.extract_info(url, download=False, process=False)
+            
+            # 检查info是否有效
+            if not info:
+                logger.error("无法获取视频信息")
+                raise HTTPException(status_code=400, detail="无法获取视频信息")
             
             # 初始化变量
             real_url = None
