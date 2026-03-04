@@ -36,34 +36,41 @@
 
 | 命令           | 说明                            |
 | -------------- | ------------------------------- |
-| `/parse <URL>` | 解析视频链接                    |
+| `/parse <URL>` | 解析视频链接（会返回解析信息并尝试下载发送）|
 | `/api_status`  | 检查本地解析 API 服务状态       |
 | `/ping_api`    | 测试与解析服务器的连接          |
 | `/help_parse`  | 查看详细帮助                    |
 | `/sphe`        | 快速显示帮助                    |
 | `/test`        | 测试插件是否正常工作            |
-| `/parse <URL>`    | 解析链接并返回详细信息，含下载地址 |
 
 解析结果示例：
 
+以下为真实运行日志和输出：
+```
+[2026-03-04 09:17:57.552] [Core] [INFO] [core.event_bus:59]: [default] [napcat(aiocqhttp)] hc/3500372287: 。parse https://x.com/i/status/2028656600328831320
+[2026-03-04 09:17:57.558] [Plug] [INFO] [astrbot_platform_hx.main:66]: 开始解析视频: https://x.com/i/status/2028656600328831320
+[2026-03-04 09:18:00.424] [Plug] [INFO] [astrbot_platform_hx.main:73]: API响应状态: 200
+[2026-03-04 09:18:00.425] [Plug] [INFO] [astrbot_platform_hx.main:80]: 解析结果: {...}
+[2026-03-04 09:18:05.462] [Core] [INFO] [respond.stage:184]: Prepare to send - hc/3500372287: ✅ 解析成功！
+[CQ:file,file=/root/astrbot/2028656380400541696.mp4]
+```
+
 > ⚠️ 对于 YouTube 链接，插件会将解析超时设置为 **40 秒**，以应对较慢的响应。
 
-*原有的 `/download` 命令已移除，解析结果中包含 `download_via_api` 字段，可直接访问下载接口。
-
-解析命令会自动尝试下载视频并生成 CQ 码（仅在支持 CQ 的适配器上有效），因此不再需要单独的发送命令。*
+*原有的 `/download` 命令已移除，解析结果中包含 `download_via_api` 字段，可直接访问下载接口。解析命令会自动尝试下载视频并生成 CQ 码（仅在支持 CQ 的适配器上有效）。*
 
 
 ```
 ✅ 解析成功！
 ```json
 {
-  "title": "Example Video",
-  "real_download_url": "https://....mp4",
-  "download_via_api": "http://localhost:10010/download?url=...",
-  "platform": "YouTube",
-  "duration": 123,
-  "view_count": 45678,
-  "uploader": "ChannelName"
+  "title": "エンドフィールド工房 - アホかwww  ©️水霓代子 #エンドフィールド #ArknightsEndfield",
+  "real_download_url": "https://video.twimg.com/amplify_video/2028656380400541696/vid/avc1/720x960/ZvuPZzSvdiyqiEzy.mp4?tag=14",
+  "download_via_api": "http://localhost:10010/download?url=https%3A%2F%2Fx.com%2Fi%2Fstatus%2F2028656600328831320",
+  "platform": "Unknown",
+  "duration": 12.585,
+  "view_count": null,
+  "uploader": "エンドフィールド工房"
 }
 ```
 
