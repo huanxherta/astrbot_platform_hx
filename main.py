@@ -44,7 +44,7 @@ class PlatformParser(Star):
 
     @filter.command("parse")
     async def parse_command(self, event: AstrMessageEvent):
-        """解析视频链接"""
+        """解析视频链接并尝试下载发送（兼容CQ码平台）"""
         message_str = event.message_str
         parts = message_str.split(maxsplit=1)
         
@@ -61,7 +61,7 @@ class PlatformParser(Star):
         except ValueError:
             return event.plain_result("❌ 无效的URL格式")
             
-        # 直接发起解析请求并返回结果
+        # 请求解析接口
         try:
             logger.info(f"开始解析视频: {video_url}")
             response = requests.post(
@@ -72,15 +72,45 @@ class PlatformParser(Star):
             )
             logger.info(f"API响应状态: {response.status_code}")
             
-            if response.status_code == 200:
-                result = response.json()
-                logger.info(f"解析结果: {result}")
-                result_str = json.dumps(result, indent=2, ensure_ascii=False)
-                return event.plain_result(f"✅ 解析成功！\n```json\n{result_str}\n```")
-            else:
+            if response.status_code != 200:
                 logger.error(f"API错误: HTTP {response.status_code}, 响应: {response.text}")
                 return event.plain_result(f"❌ 解析失败：HTTP {response.status_code}\n{response.text}")
-                
+
+            result = response.json()
+            logger.info(f"解析结果: {result}")
+            result_str = json.dumps(result, indent=2, ensure_ascii=False)
+
+            # 尝试下载并生成 CQ 码，如果成功则附在输出末尾
+            cq_code = None
+            try:
+                resp = requests.get(
+                    f"{self.api_base_url}/download",
+                    params={"url": video_url},
+                    stream=True,
+                    timeout=60,
+                )
+                if resp.status_code == 200:
+                    filename = "video.mp4"
+                    cd = resp.headers.get("content-disposition", "")
+                    m = re.search(r'filename="?(.+?)"?($|;)', cd)
+                    if m:
+                        filename = m.group(1)
+                    temp_path = os.path.join(os.getcwd(), filename)
+                    with open(temp_path, "wb") as f:
+                        for chunk in resp.iter_content(8192):
+                            if chunk:
+                                f.write(chunk)
+                    cq_code = f"[CQ:file,file={temp_path}]"
+                else:
+                    logger.warning(f"下载接口返回 {resp.status_code}, 不产生CQ码")
+            except Exception as e:
+                logger.warning(f"下载阶段失败: {e}")
+
+            output = f"✅ 解析成功！\n```json\n{result_str}\n```"
+            if cq_code:
+                output += f"\n{cq_code}"
+            return event.plain_result(output)
+
         except requests.exceptions.Timeout:
             logger.error("API请求超时")
             return event.plain_result("❌ 请求超时，请稍后重试")
@@ -91,53 +121,6 @@ class PlatformParser(Star):
             logger.error(f"解析异常: {str(e)}", exc_info=True)
             return event.plain_result(f"❌ 解析出错：{str(e)}")
     
-    @filter.command("send")
-    async def send_command(self, event: AstrMessageEvent):
-        """下载视频并生成聊天平台文件代码（如 CQ 码）"""
-        message_str = event.message_str
-        parts = message_str.split(maxsplit=1)
-        if len(parts) < 2:
-            return event.plain_result("❌ 请提供视频链接\n用法：/send <视频URL>")
-        video_url = parts[1].strip()
-
-        # 基本 URL 校验
-        try:
-            parsed_url = urlparse(video_url)
-            if not all([parsed_url.scheme, parsed_url.netloc]):
-                raise ValueError()
-        except Exception:
-            return event.plain_result("❌ 无效的URL格式")
-
-        try:
-            logger.info(f"开始下载并发送视频: {video_url}")
-            resp = requests.get(
-                f"{self.api_base_url}/download",
-                params={"url": video_url},
-                stream=True,
-                timeout=60,
-            )
-            if resp.status_code != 200:
-                logger.error(f"下载接口返回 HTTP {resp.status_code}")
-                return event.plain_result(f"❌ 下载失败：HTTP {resp.status_code}")
-
-            filename = "video.mp4"
-            cd = resp.headers.get("content-disposition", "")
-            m = re.search(r'filename="?(.+?)"?($|;)', cd)
-            if m:
-                filename = m.group(1)
-
-            temp_path = os.path.join(os.getcwd(), filename)
-            with open(temp_path, "wb") as f:
-                for chunk in resp.iter_content(8192):
-                    if chunk:
-                        f.write(chunk)
-
-            # 输出 CQ 码，适用于 aiocqhttp 等平台
-            cq = f"[CQ:file,file={temp_path}]"
-            return event.plain_result(cq)
-        except Exception as e:
-            logger.error(f"发送视频失败: {e}", exc_info=True)
-            return event.plain_result(f"❌ 无法发送视频：{e}")
     
     
     @filter.command("api_status")
