@@ -68,7 +68,7 @@ class PlatformParser(Star):
                 f"{self.api_base_url}/parse",
                 json={"url": video_url},
                 headers={"Content-Type": "application/json"},
-                timeout=5  # 进一步减少超时时间
+                timeout=40 if ("youtube.com" in video_url or "youtu.be" in video_url) else 5
             )
             logger.info(f"API响应状态: {response.status_code}")
             
@@ -133,8 +133,8 @@ class PlatformParser(Star):
                     if chunk:
                         f.write(chunk)
 
-            # 发送文件（假定 event.send 支持 file 参数）
-            await event.send("📦 下载完成，发送中…", file=temp_path)
+            # 使用仅传递路径的方式发送，以兼容 aiocqhttp
+            await event.send(temp_path)
             os.remove(temp_path)
             return
         except Exception as e:
