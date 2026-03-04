@@ -48,7 +48,7 @@ class PlatformParser(Star):
         message_str = event.message_str.strip()
         
         # 检测是否包含支持的视频链接
-        supported_domains = ['tiktok.com', 'douyin.com', 'youtube.com', 'youtu.be', 'vimeo.com', 'instagram.com']
+        supported_domains = ['tiktok.com', 'douyin.com', 'youtube.com', 'youtu.be', 'vimeo.com', 'instagram.com', 'twitter.com', 'x.com']
         video_url = None
         
         # 从消息中提取 URL（模糊匹配）
@@ -83,7 +83,7 @@ class PlatformParser(Star):
                 f"{self.api_base_url}/parse",
                 json={"url": video_url},
                 headers={"Content-Type": "application/json"},
-                timeout=40
+                timeout=180
             )
             logger.info(f"API响应状态: {response.status_code}")
             
@@ -102,7 +102,7 @@ class PlatformParser(Star):
                     f"{self.api_base_url}/download",
                     params={"url": video_url},
                     stream=True,
-                    timeout=40,
+                    timeout=180,
                 )
                 if resp.status_code == 200:
                     # 保存到当前工作目录，保持原始文件名如果提供
