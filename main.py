@@ -46,6 +46,7 @@ class PlatformParser(Star):
     async def auto_parse_video(self, event: AstrMessageEvent):
         """自动检测消息中的视频链接并解析（无需命令前缀）"""
         message_str = event.message_str.strip()
+        logger.info(f"[auto_parse_video] 接收到消息: {message_str[:100]}")
         
         # 检测是否包含支持的视频链接
         supported_domains = ['tiktok.com', 'douyin.com', 'youtube.com', 'youtu.be', 'vimeo.com', 'instagram.com']
@@ -54,6 +55,7 @@ class PlatformParser(Star):
         # 尝试从消息中提取 URL
         url_pattern = r'https?://[^\s]+'
         urls = re.findall(url_pattern, message_str)
+        logger.info(f"[auto_parse_video] 发现的URL: {urls}")
         
         for url in urls:
             if any(domain in url for domain in supported_domains):
@@ -62,9 +64,10 @@ class PlatformParser(Star):
         
         if not video_url:
             # 没有检测到视频链接，跳过处理
+            logger.info(f"[auto_parse_video] 消息中没有支持的视频链接")
             return
         
-        logger.info(f"自动检测到视频链接: {video_url}")
+        logger.info(f"[auto_parse_video] 自动检测到视频链接: {video_url}")
         
         # 验证URL格式
         try:
