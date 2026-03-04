@@ -9,6 +9,10 @@ import os
 import re
 from typing import Any, cast
 from urllib.parse import quote
+import asyncio
+import datetime
+from datetime import timedelta
+from typing import Dict, Any as AnyT
 
 app = FastAPI()
 logging.basicConfig(level=logging.INFO)
@@ -196,6 +200,85 @@ async def delete_video(url: str):
         err = traceback.format_exc()
         logger.error(f"❌ 删除异常: {err}")
         raise _normalize_error_detail(e, url)
+
+
+# ----------------
+# 下载目录周期清理任务
+# ----------------
+
+# 全局下载目录常量（模块级）
+DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+# 可通过环境变量覆盖
+DOWNLOAD_RETENTION_DAYS = int(os.getenv("DOWNLOAD_RETENTION_DAYS", "7"))
+# 清理间隔（秒），默认每天一次
+DOWNLOAD_CLEANUP_INTERVAL = int(os.getenv("DOWNLOAD_CLEANUP_INTERVAL", str(24 * 3600)))
+
+def _cleanup_once(retention_days: int = DOWNLOAD_RETENTION_DAYS) -> Dict[str, AnyT]:
+    now = datetime.datetime.now()
+    cutoff = now - timedelta(days=retention_days)
+    removed_files = []
+
+    try:
+        for root, _, files in os.walk(DOWNLOAD_DIR):
+            for fn in files:
+                fp = os.path.join(root, fn)
+                try:
+                    mtime = datetime.datetime.fromtimestamp(os.path.getmtime(fp))
+                except Exception:
+                    continue
+                if mtime < cutoff:
+                    try:
+                        os.remove(fp)
+                        removed_files.append(fp)
+                        logger.info(f"🧹 已删除过期缓存文件: {fp}")
+                    except Exception as e:
+                        logger.error(f"删除文件失败 {fp}: {e}")
+        return {"deleted_count": len(removed_files), "deleted": removed_files}
+    except Exception as e:
+        logger.error(f"清理异常: {e}")
+        return {"deleted_count": 0, "deleted": [], "error": str(e)}
+
+async def _periodic_cleanup_task(interval: int = DOWNLOAD_CLEANUP_INTERVAL, retention_days: int = DOWNLOAD_RETENTION_DAYS):
+    logger.info(f"启动下载目录周期清理任务: 每 {interval}s 清理一次，保留 {retention_days} 天内的文件")
+    while True:
+        try:
+            res = _cleanup_once(retention_days)
+            if res.get("deleted_count", 0) > 0:
+                logger.info(f"清理完成，移除 {res['deleted_count']} 个文件")
+        except Exception as e:
+            logger.error(f"周期清理出错: {e}")
+        await asyncio.sleep(interval)
+
+
+@app.on_event("startup")
+async def startup_cleanup_task():
+    # 在后台启动周期清理任务
+    asyncio.create_task(_periodic_cleanup_task())
+
+
+@app.post("/cleanup")
+async def trigger_cleanup(dry_run: bool = False):
+    """手动触发一次清理。默认会删除过期文件；dry_run=True 时仅返回将被删除的列表。"""
+    # 返回将要删除或已删除的文件信息
+    if dry_run:
+        # 模拟：列出但不删除
+        now = datetime.datetime.now()
+        cutoff = now - timedelta(days=DOWNLOAD_RETENTION_DAYS)
+        will_delete = []
+        for root, _, files in os.walk(DOWNLOAD_DIR):
+            for fn in files:
+                fp = os.path.join(root, fn)
+                try:
+                    mtime = datetime.datetime.fromtimestamp(os.path.getmtime(fp))
+                except Exception:
+                    continue
+                if mtime < cutoff:
+                    will_delete.append(fp)
+        return {"will_delete_count": len(will_delete), "will_delete": will_delete}
+
+    return _cleanup_once(DOWNLOAD_RETENTION_DAYS)
 
 @app.get("/")
 async def root():
