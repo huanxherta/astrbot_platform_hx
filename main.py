@@ -42,16 +42,29 @@ class PlatformParser(Star):
         """插件异步初始化方法"""
         logger.info("PlatformParser 插件启动完成")
 
-    @filter.command("parse")
-    async def parse_command(self, event: AstrMessageEvent):
-        """解析视频链接并尝试下载发送（兼容CQ码平台）"""
-        message_str = event.message_str
-        parts = message_str.split(maxsplit=1)
+    @filter.message()
+    async def auto_parse_video(self, event: AstrMessageEvent):
+        """自动检测消息中的视频链接并解析（无需命令前缀）"""
+        message_str = event.message_str.strip()
         
-        if len(parts) < 2:
-            return event.plain_result("❌ 请提供视频链接\n用法：/parse <视频URL>")
-            
-        video_url = parts[1].strip()
+        # 检测是否包含支持的视频链接
+        supported_domains = ['tiktok.com', 'douyin.com', 'youtube.com', 'youtu.be', 'vimeo.com', 'instagram.com']
+        video_url = None
+        
+        # 尝试从消息中提取 URL
+        url_pattern = r'https?://[^\s]+'
+        urls = re.findall(url_pattern, message_str)
+        
+        for url in urls:
+            if any(domain in url for domain in supported_domains):
+                video_url = url
+                break
+        
+        if not video_url:
+            # 没有检测到视频链接，跳过处理
+            return
+        
+        logger.info(f"自动检测到视频链接: {video_url}")
         
         # 验证URL格式
         try:
@@ -169,21 +182,23 @@ class PlatformParser(Star):
             logger.error(f"API连接测试失败: {str(e)}")
             return event.plain_result(f"❌ 无法连接到API服务器：{str(e)}")
     
-    @filter.command("help_parse")
+    @filter.command("help")
     async def help_command(self, event: AstrMessageEvent):
         """显示详细帮助信息"""
         help_text = f"""
 🎥 视频解析插件帮助 (v{get_version()})
 
+用法：
+• 直接发送视频链接 - 自动解析并发送
+  支持：TikTok、抖音、YouTube、Vimeo、Instagram
+
 命令：
-• /parse <视频URL> - 解析视频链接并提供下载地址
+• /help - 显示此帮助信息
+• /sphe - 快速帮助
+• /test - 测试插件状态
 • /api_status - 检查API服务状态  
 • /ping_api - 测试API连接
-• /help_parse - 显示此帮助信息
-• /sphe - 快速显示插件帮助
-• /test - 测试插件状态
 
-支持的平台：所有平台
 API地址：http://localhost:10010 (本地服务器)
 版本: {get_version()}
         """
@@ -196,12 +211,13 @@ API地址：http://localhost:10010 (本地服务器)
         help_text = f"""
 🎥 视频解析插件 v{get_version()}
 
-▪️ /parse <视频URL> - 解析视频
-▪️ /api_status - API状态
-▪️ /ping_api - 测试API连接
-▪️ /help_parse - 详细帮助
-▪️ /sphe - 快速帮助
+用法：直接发送视频链接，自动解析
+支持：TikTok、抖音、YouTube、Vimeo、Instagram
+
+▪️ /help - 详细帮助
 ▪️ /test - 测试插件
+▪️ /api_status - API状态
+▪️ /ping_api - 测试连接
 
 📍 API: http://localhost:10010 (本地服务器)
         """
