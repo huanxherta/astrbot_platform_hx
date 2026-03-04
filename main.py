@@ -12,9 +12,12 @@ from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 
-# 自动读取和更新版本号
+# 版本号获取函数
+# 插件版本信息由 metadata.yaml 提供，一般由开发者手动维护。
+# 框架在加载时会读取该字段，插件运行时修改文件不会影响当前加载的版本，
+# 因此不推荐在代码中做自动变更（见：https://docs.astrbot.app/dev/star/plugin-new.html）。
 def get_version():
-    """获取当前版本号"""
+    """从 metadata.yaml 中读取版本号"""
     metadata_path = os.path.join(os.path.dirname(__file__), 'metadata.yaml')
     try:
         with open(metadata_path, 'r', encoding='utf-8') as f:
@@ -22,40 +25,11 @@ def get_version():
             for line in content.split('\n'):
                 if line.startswith('version:'):
                     return line.split(':')[1].strip().strip('"')
-    except:
+    except Exception:
         pass
     return "1.0.0"
 
-def increment_version():
-    """版本号自动增加0.01"""
-    metadata_path = os.path.join(os.path.dirname(__file__), 'metadata.yaml')
-    try:
-        with open(metadata_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        lines = content.split('\n')
-        new_lines = []
-        for line in lines:
-            if line.startswith('version:'):
-                current_version = line.split(':')[1].strip().strip('"')
-                try:
-                    version_float = float(current_version)
-                    new_version = f"{version_float + 0.01:.2f}"
-                    new_line = f'version: "{new_version}"'
-                    new_lines.append(new_line)
-                    logger.info(f"版本号从 {current_version} 更新到 {new_version}")
-                except:
-                    new_lines.append(line)
-            else:
-                new_lines.append(line)
-        
-        with open(metadata_path, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(new_lines))
-    except Exception as e:
-        logger.error(f"更新版本号失败: {e}")
-
-# 每次插件加载时自动更新版本号
-increment_version()
+# NOTE: 不再在插件加载时自动修改 version，避免与框架读写时机冲突。
 
 @register("platform_hx", "hx", "解析部分平台API的插件", get_version())
 class PlatformParser(Star):
@@ -87,8 +61,7 @@ class PlatformParser(Star):
         except ValueError:
             return event.plain_result("❌ 无效的URL格式")
             
-        return event.plain_result("🔄 正在解析视频...")
-        
+        # 直接发起解析请求并返回结果
         try:
             logger.info(f"开始解析视频: {video_url}")
             response = requests.post(
@@ -187,7 +160,6 @@ API地址：http://localhost:10010 (本地服务器)
 📍 API: http://localhost:10010 (本地服务器)
         """
         return event.plain_result(help_text.strip())
-        logger.info("sphe 命令处理完成")
 
     @filter.command("test")
     async def test_command(self, event: AstrMessageEvent):
@@ -195,7 +167,6 @@ API地址：http://localhost:10010 (本地服务器)
         user_name = event.get_sender_name()
         logger.info(f"收到 test 命令，来自用户: {user_name}")
         return event.plain_result(f"✅ 插件工作正常！\n👋 你好 {user_name}\n📊 当前版本: {get_version()}")
-        logger.info("test 命令处理完成")
 
     async def terminate(self):
         """插件销毁方法"""
