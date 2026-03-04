@@ -143,6 +143,60 @@ async def download_video(url: str):
         logger.error(f"❌ 下载异常: {err}")
         raise _normalize_error_detail(e, url)
 
+
+@app.delete("/download")
+async def delete_video(url: str):
+    """删除已缓存的下载文件（仅在 downloads/ 目录内）。
+
+    Args:
+        url: 原始视频 URL，用于计算下载文件名并删除对应文件。
+    """
+    logger.info(f"🗑️ 收到删除请求: {url}")
+    download_dir = os.path.join(os.path.dirname(__file__), "downloads")
+    os.makedirs(download_dir, exist_ok=True)
+
+    try:
+        ydl_opts = _build_ydl_opts(url)
+        ydl_opts.update({
+            'outtmpl': os.path.join(download_dir, '%(id)s.%(ext)s'),
+            'noplaylist': True,
+        })
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # 只获取信息，计算目标文件名
+            info = ydl.extract_info(url, download=False)
+            if not info:
+                raise HTTPException(status_code=400, detail="无法获取视频信息，无法删除")
+
+            file_path = ydl.prepare_filename(info)
+
+            # 仅允许删除 downloads 下的文件，防止任意文件删除
+            real_download_dir = os.path.realpath(download_dir)
+            real_file_path = os.path.realpath(file_path)
+            if not real_file_path.startswith(real_download_dir + os.sep):
+                logger.error(f"尝试删除不在 downloads 目录的文件: {real_file_path}")
+                raise HTTPException(status_code=400, detail="拒绝删除非缓存目录文件")
+
+            if os.path.exists(real_file_path):
+                try:
+                    os.remove(real_file_path)
+                    logger.info(f"✅ 已删除缓存文件: {real_file_path}")
+                    return {"deleted": True, "path": real_file_path}
+                except Exception as e:
+                    logger.error(f"删除文件失败: {e}")
+                    raise HTTPException(status_code=500, detail=f"删除失败: {e}")
+            else:
+                logger.info(f"未找到要删除的文件: {real_file_path}")
+                raise HTTPException(status_code=404, detail="未找到缓存文件")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        err = traceback.format_exc()
+        logger.error(f"❌ 删除异常: {err}")
+        raise _normalize_error_detail(e, url)
+
 @app.get("/")
 async def root():
     return {"message": "视频解析API服务运行中", "endpoints": {"parse": "POST /parse", "download": "GET /download?url=..."}}
