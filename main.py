@@ -91,55 +91,6 @@ class PlatformParser(Star):
             logger.error(f"解析异常: {str(e)}", exc_info=True)
             return event.plain_result(f"❌ 解析出错：{str(e)}")
     
-    @filter.command("download")
-    async def download_command(self, event: AstrMessageEvent):
-        """下载视频并发送给用户"""
-        message_str = event.message_str
-        parts = message_str.split(maxsplit=1)
-        if len(parts) < 2:
-            return event.plain_result("❌ 请提供视频链接\n用法：/download <视频URL>")
-        video_url = parts[1].strip()
-
-        # 验证 URL
-        try:
-            parsed_url = urlparse(video_url)
-            if not all([parsed_url.scheme, parsed_url.netloc]):
-                raise ValueError()
-        except Exception:
-            return event.plain_result("❌ 无效的URL格式")
-
-        try:
-            logger.info(f"开始下载视频: {video_url}")
-            resp = requests.get(
-                f"{self.api_base_url}/download",
-                params={"url": video_url},
-                stream=True,
-                timeout=60,
-            )
-            if resp.status_code != 200:
-                logger.error(f"下载接口返回 HTTP {resp.status_code}")
-                return event.plain_result(f"❌ 下载失败：HTTP {resp.status_code}")
-
-            # 尝试从响应头获取文件名
-            filename = "video.mp4"
-            cd = resp.headers.get("content-disposition", "")
-            m = re.search(r'filename="?(.+?)"?($|;)', cd)
-            if m:
-                filename = m.group(1)
-
-            temp_path = os.path.join(os.getcwd(), filename)
-            with open(temp_path, "wb") as f:
-                for chunk in resp.iter_content(8192):
-                    if chunk:
-                        f.write(chunk)
-
-            # 使用仅传递路径的方式发送，以兼容 aiocqhttp
-            await event.send(temp_path)
-            os.remove(temp_path)
-            return
-        except Exception as e:
-            logger.error(f"下载异常: {e}", exc_info=True)
-            return event.plain_result(f"❌ 下载出错：{e}")
     
     @filter.command("api_status")
     async def api_status_command(self, event: AstrMessageEvent):
@@ -180,7 +131,7 @@ class PlatformParser(Star):
 🎥 视频解析插件帮助 (v{get_version()})
 
 命令：
-• /parse <视频URL> - 解析视频链接
+• /parse <视频URL> - 解析视频链接并提供下载地址
 • /api_status - 检查API服务状态  
 • /ping_api - 测试API连接
 • /help_parse - 显示此帮助信息
