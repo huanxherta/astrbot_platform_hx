@@ -42,7 +42,7 @@ class PlatformParser(Star):
         """插件异步初始化方法"""
         logger.info("PlatformParser 插件启动完成")
 
-    @filter.message()
+    @filter.regex(r'https?://(tiktok\.com|douyin\.com|youtube\.com|youtu\.be|vimeo\.com|instagram\.com)')
     async def auto_parse_video(self, event: AstrMessageEvent):
         """自动检测消息中的视频链接并解析（无需命令前缀）"""
         message_str = event.message_str.strip()
