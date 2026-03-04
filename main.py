@@ -80,8 +80,8 @@ class PlatformParser(Star):
             logger.info(f"解析结果: {result}")
             result_str = json.dumps(result, indent=2, ensure_ascii=False)
 
-            # 尝试下载并生成 CQ 码，如果成功则附在输出末尾
-            cq_code = None
+            # 尝试下载并发送文件（兼容各平台的 MessageChain）
+            file_sent = False
             try:
                 resp = requests.get(
                     f"{self.api_base_url}/download",
@@ -90,9 +90,10 @@ class PlatformParser(Star):
                     timeout=60,
                 )
                 if resp.status_code == 200:
+                    # 保存到当前工作目录，保持原始文件名如果提供
                     filename = "video.mp4"
                     cd = resp.headers.get("content-disposition", "")
-                    m = re.search(r'filename="?(.+?)"?($|;)', cd)
+                    m = re.search(r'filename\"?(.+?)\"?($|;)', cd)
                     if m:
                         filename = m.group(1)
                     temp_path = os.path.join(os.getcwd(), filename)
@@ -100,17 +101,28 @@ class PlatformParser(Star):
                         for chunk in resp.iter_content(8192):
                             if chunk:
                                 f.write(chunk)
-                    cq_code = f"[CQ:file,file={temp_path}]"
+
+                    # 构造 MessageChain 发送文件，避免传入 str 导致 AttributeError
+                    from astrbot.api.message_components import File
+                    from astrbot.api.event import MessageChain
+
+                    chain = MessageChain()
+                    chain.chain.append(File(name=filename, file=temp_path))
+                    await event.send(chain)
+                    file_sent = True
                 else:
-                    logger.warning(f"下载接口返回 {resp.status_code}, 不产生CQ码")
+                    logger.warning(f"下载接口返回 {resp.status_code}, 未发送文件")
             except Exception as e:
                 logger.warning(f"下载阶段失败: {e}")
 
             output = f"✅ 解析成功！\n```json\n{result_str}\n```"
-            # 如果有CQ码，先单独发送以便平台识别
-            if cq_code:
-                await event.send(cq_code)
-            return event.plain_result(output)
+            # 先返回解析结果文本，文件会在上面一条消息中发送
+            if file_sent:
+                # plain_result 会在后续发送，保持与文件分开
+                return event.plain_result(output)
+            else:
+                # 如果下载/发送失败，只显示解析结果
+                return event.plain_result(output)
 
         except requests.exceptions.Timeout:
             logger.error("API请求超时")
