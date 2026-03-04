@@ -68,7 +68,7 @@ class PlatformParser(Star):
                 f"{self.api_base_url}/parse",
                 json={"url": video_url},
                 headers={"Content-Type": "application/json"},
-                timeout=40 if ("youtube.com" in video_url or "youtu.be" in video_url) else 5
+                timeout=40
             )
             logger.info(f"API响应状态: {response.status_code}")
             
@@ -87,7 +87,7 @@ class PlatformParser(Star):
                     f"{self.api_base_url}/download",
                     params={"url": video_url},
                     stream=True,
-                    timeout=60,
+                    timeout=40,
                 )
                 if resp.status_code == 200:
                     # 保存到当前工作目录，保持原始文件名如果提供
