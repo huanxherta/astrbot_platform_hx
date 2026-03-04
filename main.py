@@ -78,7 +78,7 @@ class PlatformParser(Star):
 
             result = response.json()
             logger.info(f"解析结果: {result}")
-            result_str = json.dumps(result, indent=2, ensure_ascii=False)
+            title = result.get("title", "Unknown Video")
 
             # 尝试下载并发送文件（兼容各平台的 MessageChain）
             file_sent = False
@@ -102,11 +102,13 @@ class PlatformParser(Star):
                             if chunk:
                                 f.write(chunk)
 
-                    # 构造 MessageChain 发送文件，避免传入 str 导致 AttributeError
+                    # 构造 MessageChain 包含标题和文件，避免传入 str 导致 AttributeError
                     from astrbot.api.message_components import File
+                    from astrbot.api.message_components import Plain
                     from astrbot.api.event import MessageChain
 
                     chain = MessageChain()
+                    chain.chain.append(Plain(text=f"📹 {title}"))
                     chain.chain.append(File(name=filename, file=temp_path))
                     await event.send(chain)
                     file_sent = True
@@ -115,14 +117,13 @@ class PlatformParser(Star):
             except Exception as e:
                 logger.warning(f"下载阶段失败: {e}")
 
-            output = f"✅ 解析成功！\n```json\n{result_str}\n```"
-            # 先返回解析结果文本，文件会在上面一条消息中发送
             if file_sent:
-                # plain_result 会在后续发送，保持与文件分开
-                return event.plain_result(output)
+                # 文件已发送，不再返回其他消息
+                return
             else:
-                # 如果下载/发送失败，只显示解析结果
-                return event.plain_result(output)
+                # 如果下载/发送失败，显示标题和错误提示
+                logger.warning(f"无法发送视频文件，仅显示标题: {title}")
+                return event.plain_result(f"📹 {title}\n\n⚠️ 视频下载失败，请稍后重试")
 
         except requests.exceptions.Timeout:
             logger.error("API请求超时")
