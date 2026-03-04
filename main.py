@@ -107,8 +107,9 @@ class PlatformParser(Star):
                 logger.warning(f"下载阶段失败: {e}")
 
             output = f"✅ 解析成功！\n```json\n{result_str}\n```"
+            # 如果有CQ码，先单独发送以便平台识别
             if cq_code:
-                output += f"\n{cq_code}"
+                await event.send(cq_code)
             return event.plain_result(output)
 
         except requests.exceptions.Timeout:
