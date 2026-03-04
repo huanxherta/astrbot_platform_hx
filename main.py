@@ -102,14 +102,14 @@ class PlatformParser(Star):
                             if chunk:
                                 f.write(chunk)
 
-                    # 构造 MessageChain 包含标题和文件，避免传入 str 导致 AttributeError
-                    from astrbot.api.message_components import File
+                    # 构造 MessageChain 包含标题和视频，使用 Video 组件让平台正确识别
+                    from astrbot.api.message_components import Video
                     from astrbot.api.message_components import Plain
                     from astrbot.api.event import MessageChain
 
                     chain = MessageChain()
                     chain.chain.append(Plain(text=f"📹 {title}"))
-                    chain.chain.append(File(name=filename, file=temp_path))
+                    chain.chain.append(Video.fromFileSystem(temp_path))
                     await event.send(chain)
                     file_sent = True
                 else:
