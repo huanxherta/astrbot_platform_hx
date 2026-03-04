@@ -7,9 +7,10 @@
 
 ## 功能
 
-- 支持 TikTok、抖音、YouTube 及其他平台视频链接解析。
+- 支持 TikTok、抖音、YouTube、Vimeo、Instagram 以及 Twitter/X 等常见平台视频链接解析。
+- 自动模糊匹配任何消息中的链接，用户无需前缀命令。
 - 提供可直接下载的视频真实地址或通过 API 下载。
-- 插件自动读取并管理版本号，启动时会将 `metadata.yaml` 版本号 +0.01。
+- 插件自动读取并管理版本号。
 - 帮助命令包括 `/help_parse`、`/sphe` 等。
 
 ## 安装与部署
@@ -82,6 +83,11 @@
 
 - `www.youtube.com_cookies.txt`：可选的 YouTube cookie，用于解析需要登录的视频。
 - `metadata.yaml`：插件元数据，`version` 字段由插件加载时自动更新。
+
+## 其他说明
+
+- 默认解析/下载请求超时时间已扩展至 180 秒，以便处理较慢或大体积链接（如 Twitter/X）。
+- 更新日志请参见 `CHANGELOG.md` 文件。
 
 ## 许可证
 
