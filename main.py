@@ -42,33 +42,28 @@ class PlatformParser(Star):
         """插件异步初始化方法"""
         logger.info("PlatformParser 插件启动完成")
 
-    @filter.text()
+    @filter.event_message_type(filter.EventMessageType.ALL)
     async def auto_parse_video(self, event: AstrMessageEvent):
-        """自动检测消息中的视频链接并解析（无需命令前缀）"""
+        """自动检测消息中的视频链接并解析（模糊匹配链接）"""
         message_str = event.message_str.strip()
-        logger.info(f"[auto_parse_video] 接收到消息: {message_str[:100]}")
-        logger.info(f"[auto_parse_video] 消息长度: {len(message_str)}")
         
         # 检测是否包含支持的视频链接
         supported_domains = ['tiktok.com', 'douyin.com', 'youtube.com', 'youtu.be', 'vimeo.com', 'instagram.com']
         video_url = None
         
-        # 尝试从消息中提取 URL
+        # 从消息中提取 URL（模糊匹配）
         url_pattern = r'https?://[^\s]+'
         urls = re.findall(url_pattern, message_str)
-        logger.info(f"[auto_parse_video] 发现的URL数量: {len(urls)}")
-        if urls:
-            logger.info(f"[auto_parse_video] URLs: {urls}")
+        logger.info(f"[auto_parse_video] 检测到 {len(urls)} 个URL")
         
         for url in urls:
             if any(domain in url for domain in supported_domains):
                 video_url = url
-                logger.info(f"[auto_parse_video] 找到匹配的视频URL: {url}")
+                logger.info(f"[auto_parse_video] 匹配到视频链接: {url}")
                 break
         
         if not video_url:
             # 没有检测到视频链接，跳过处理
-            logger.info(f"[auto_parse_video] 消息中没有支持的视频链接，返回")
             return
         
         logger.info(f"[auto_parse_video] 自动检测到视频链接: {video_url}")
