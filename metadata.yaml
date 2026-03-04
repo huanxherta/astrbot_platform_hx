@@ -1,7 +1,7 @@
 name: "astrbot_platform_hx"
 author: "hx"
 desc: "解析部分平台API的插件"
-version: "1.0.0"
+version: "1.0.1"
 repo: "https://github.com/huanxherta/astrbot_platform_hx.git"
 entry: "main.py"
 icon: "icon.png"
