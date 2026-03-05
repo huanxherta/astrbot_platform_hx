@@ -100,8 +100,13 @@ class PlatformParser(Star):
                 
                 # 从抖音API响应中提取信息
                 jx = result.get("jx", {})
-                title = jx.get("item", {}).get("title", "Unknown Video")
+                title = jx.get("item", {}).get("title", "Unknown")
                 download_url = jx.get("item", {}).get("url", None)
+                images = jx.get("item", {}).get("images", [])  # 图集
+                
+                # 判断是视频还是图片集
+                has_video = bool(download_url)
+                has_images = bool(images)
             else:
                 # 其他平台使用本地API
                 response = requests.post(
@@ -124,39 +129,78 @@ class PlatformParser(Star):
             # 尝试下载并发送文件（兼容各平台的 MessageChain）
             file_sent = False
             
-            if is_douyin and download_url:
-                # 对于抖音，直接使用提供的下载URL
-                try:
-                    resp = requests.get(
-                        download_url,
-                        stream=True,
-                        timeout=180,
-                    )
-                    if resp.status_code == 200:
-                        filename = "video.mp4"
-                        cd = resp.headers.get("content-disposition", "")
-                        m = re.search(r'filename\"?(.+?)\"?($|;)', cd)
-                        if m:
-                            filename = m.group(1)
-                        temp_path = os.path.join(os.getcwd(), filename)
-                        with open(temp_path, "wb") as f:
-                            for chunk in resp.iter_content(8192):
-                                if chunk:
-                                    f.write(chunk)
+            if is_douyin:
+                # 抖音链接处理
+                from astrbot.api.message_components import Video, Image
+                from astrbot.api.message_components import Plain
+                from astrbot.api.event import MessageChain
+                
+                chain = MessageChain()
+                chain.chain.append(Plain(text=f"📹 {title}"))
+                
+                # 优先发送视频
+                if has_video and download_url:
+                    try:
+                        resp = requests.get(
+                            download_url,
+                            stream=True,
+                            timeout=180,
+                        )
+                        if resp.status_code == 200:
+                            filename = "video.mp4"
+                            cd = resp.headers.get("content-disposition", "")
+                            m = re.search(r'filename\"?(.+?)\"?($|;)', cd)
+                            if m:
+                                filename = m.group(1)
+                            temp_path = os.path.join(os.getcwd(), filename)
+                            with open(temp_path, "wb") as f:
+                                for chunk in resp.iter_content(8192):
+                                    if chunk:
+                                        f.write(chunk)
 
-                        from astrbot.api.message_components import Video
-                        from astrbot.api.message_components import Plain
-                        from astrbot.api.event import MessageChain
-
-                        chain = MessageChain()
-                        chain.chain.append(Plain(text=f"📹 {title}"))
-                        chain.chain.append(Video.fromFileSystem(temp_path))
-                        await event.send(chain)
-                        file_sent = True
-                    else:
-                        logger.warning(f"下载接口返回 {resp.status_code}, 未发送文件")
-                except Exception as e:
-                    logger.warning(f"下载阶段失败: {e}")
+                            chain.chain.append(Video.fromFileSystem(temp_path))
+                            await event.send(chain)
+                            file_sent = True
+                        else:
+                            logger.warning(f"下载视频失败: HTTP {resp.status_code}")
+                    except Exception as e:
+                        logger.warning(f"下载视频失败: {e}")
+                
+                # 如果没有视频，则发送图片集
+                if not file_sent and has_images:
+                    try:
+                        for idx, image_url in enumerate(images):
+                            if not image_url:
+                                continue
+                            resp = requests.get(
+                                image_url,
+                                stream=True,
+                                timeout=180,
+                            )
+                            if resp.status_code == 200:
+                                filename = f"image_{idx}.jpg"
+                                temp_path = os.path.join(os.getcwd(), filename)
+                                with open(temp_path, "wb") as f:
+                                    for chunk in resp.iter_content(8192):
+                                        if chunk:
+                                            f.write(chunk)
+                                
+                                img_chain = MessageChain()
+                                if idx == 0:
+                                    img_chain.chain.append(Plain(text=f"🖼️ {title}"))
+                                img_chain.chain.append(Image.fromFileSystem(temp_path))
+                                await event.send(img_chain)
+                                file_sent = True
+                            else:
+                                logger.warning(f"下载图片 {idx} 失败: HTTP {resp.status_code}")
+                    except Exception as e:
+                        logger.warning(f"下载图片集失败: {e}")
+                
+                if file_sent:
+                    return
+                else:
+                    logger.warning(f"无法发送内容，仅显示标题: {title}")
+                    return event.plain_result(f"📹 {title}\n\n⚠️ 内容下载失败，请稍后重试")
             elif not is_douyin:
                 # 对于其他平台，使用原来的下载方式
                 try:
