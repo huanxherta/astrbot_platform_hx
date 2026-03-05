@@ -36,6 +36,7 @@ class PlatformParser(Star):
     def __init__(self, context: Context):
         super().__init__(context)
         self.api_base_url = "http://localhost:10010"  # 使用本地API服务器
+        self.douyin_api_url = "https://api.xingzhige.com/API/douyin/"  # 抖音专用API
         logger.info(f"PlatformParser 插件初始化完成，版本: {get_version()}")
 
     async def initialize(self):
@@ -72,62 +73,124 @@ class PlatformParser(Star):
                 raise ValueError("Invalid URL")
         except ValueError:
             return event.plain_result("❌ 无效的URL格式")
-            
+        
+        # 判断是否为抖音链接
+        is_douyin = 'douyin.com' in video_url
+        
         # 请求解析接口
         try:
             logger.info(f"开始解析视频: {video_url}")
-            response = requests.post(
-                f"{self.api_base_url}/parse",
-                json={"url": video_url},
-                headers={"Content-Type": "application/json"},
-                timeout=180
-            )
-            logger.info(f"API响应状态: {response.status_code}")
             
-            if response.status_code != 200:
-                logger.error(f"API错误: HTTP {response.status_code}, 响应: {response.text}")
-                return event.plain_result(f"❌ 解析失败：HTTP {response.status_code}\n{response.text}")
+            if is_douyin:
+                # 抖音链接使用专用API
+                logger.info(f"使用抖音专用API: {self.douyin_api_url}")
+                response = requests.post(
+                    self.douyin_api_url,
+                    data={"url": video_url},
+                    timeout=180
+                )
+                logger.info(f"API响应状态: {response.status_code}")
+                
+                if response.status_code != 200:
+                    logger.error(f"API错误: HTTP {response.status_code}, 响应: {response.text}")
+                    return event.plain_result(f"❌ 解析失败：HTTP {response.status_code}\n{response.text}")
+                
+                result = response.json()
+                logger.info(f"解析结果: {result}")
+                
+                # 从抖音API响应中提取信息
+                jx = result.get("jx", {})
+                title = jx.get("item", {}).get("title", "Unknown Video")
+                download_url = jx.get("item", {}).get("url", None)
+            else:
+                # 其他平台使用本地API
+                response = requests.post(
+                    f"{self.api_base_url}/parse",
+                    json={"url": video_url},
+                    headers={"Content-Type": "application/json"},
+                    timeout=180
+                )
+                logger.info(f"API响应状态: {response.status_code}")
+                
+                if response.status_code != 200:
+                    logger.error(f"API错误: HTTP {response.status_code}, 响应: {response.text}")
+                    return event.plain_result(f"❌ 解析失败：HTTP {response.status_code}\n{response.text}")
 
-            result = response.json()
-            logger.info(f"解析结果: {result}")
-            title = result.get("title", "Unknown Video")
+                result = response.json()
+                logger.info(f"解析结果: {result}")
+                title = result.get("title", "Unknown Video")
+                download_url = result.get("real_download_url", None)
 
             # 尝试下载并发送文件（兼容各平台的 MessageChain）
             file_sent = False
-            try:
-                resp = requests.get(
-                    f"{self.api_base_url}/download",
-                    params={"url": video_url},
-                    stream=True,
-                    timeout=180,
-                )
-                if resp.status_code == 200:
-                    # 保存到当前工作目录，保持原始文件名如果提供
-                    filename = "video.mp4"
-                    cd = resp.headers.get("content-disposition", "")
-                    m = re.search(r'filename\"?(.+?)\"?($|;)', cd)
-                    if m:
-                        filename = m.group(1)
-                    temp_path = os.path.join(os.getcwd(), filename)
-                    with open(temp_path, "wb") as f:
-                        for chunk in resp.iter_content(8192):
-                            if chunk:
-                                f.write(chunk)
+            
+            if is_douyin and download_url:
+                # 对于抖音，直接使用提供的下载URL
+                try:
+                    resp = requests.get(
+                        download_url,
+                        stream=True,
+                        timeout=180,
+                    )
+                    if resp.status_code == 200:
+                        filename = "video.mp4"
+                        cd = resp.headers.get("content-disposition", "")
+                        m = re.search(r'filename\"?(.+?)\"?($|;)', cd)
+                        if m:
+                            filename = m.group(1)
+                        temp_path = os.path.join(os.getcwd(), filename)
+                        with open(temp_path, "wb") as f:
+                            for chunk in resp.iter_content(8192):
+                                if chunk:
+                                    f.write(chunk)
 
-                    # 构造 MessageChain 包含标题和视频，使用 Video 组件让平台正确识别
-                    from astrbot.api.message_components import Video
-                    from astrbot.api.message_components import Plain
-                    from astrbot.api.event import MessageChain
+                        from astrbot.api.message_components import Video
+                        from astrbot.api.message_components import Plain
+                        from astrbot.api.event import MessageChain
 
-                    chain = MessageChain()
-                    chain.chain.append(Plain(text=f"📹 {title}"))
-                    chain.chain.append(Video.fromFileSystem(temp_path))
-                    await event.send(chain)
-                    file_sent = True
-                else:
-                    logger.warning(f"下载接口返回 {resp.status_code}, 未发送文件")
-            except Exception as e:
-                logger.warning(f"下载阶段失败: {e}")
+                        chain = MessageChain()
+                        chain.chain.append(Plain(text=f"📹 {title}"))
+                        chain.chain.append(Video.fromFileSystem(temp_path))
+                        await event.send(chain)
+                        file_sent = True
+                    else:
+                        logger.warning(f"下载接口返回 {resp.status_code}, 未发送文件")
+                except Exception as e:
+                    logger.warning(f"下载阶段失败: {e}")
+            elif not is_douyin:
+                # 对于其他平台，使用原来的下载方式
+                try:
+                    resp = requests.get(
+                        f"{self.api_base_url}/download",
+                        params={"url": video_url},
+                        stream=True,
+                        timeout=180,
+                    )
+                    if resp.status_code == 200:
+                        filename = "video.mp4"
+                        cd = resp.headers.get("content-disposition", "")
+                        m = re.search(r'filename\"?(.+?)\"?($|;)', cd)
+                        if m:
+                            filename = m.group(1)
+                        temp_path = os.path.join(os.getcwd(), filename)
+                        with open(temp_path, "wb") as f:
+                            for chunk in resp.iter_content(8192):
+                                if chunk:
+                                    f.write(chunk)
+
+                        from astrbot.api.message_components import Video
+                        from astrbot.api.message_components import Plain
+                        from astrbot.api.event import MessageChain
+
+                        chain = MessageChain()
+                        chain.chain.append(Plain(text=f"📹 {title}"))
+                        chain.chain.append(Video.fromFileSystem(temp_path))
+                        await event.send(chain)
+                        file_sent = True
+                    else:
+                        logger.warning(f"下载接口返回 {resp.status_code}, 未发送文件")
+                except Exception as e:
+                    logger.warning(f"下载阶段失败: {e}")
 
             if file_sent:
                 # 文件已发送，不再返回其他消息
