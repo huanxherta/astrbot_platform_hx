@@ -96,13 +96,18 @@ class PlatformParser(Star):
                     return event.plain_result(f"❌ 解析失败：HTTP {response.status_code}\n{response.text}")
                 
                 result = response.json()
-                logger.info(f"解析结果: {result}")
+                logger.info(f"完整API响应: {result}")
                 
                 # 从抖音API响应中提取信息
                 jx = result.get("jx", {})
-                title = jx.get("item", {}).get("title", "Unknown")
-                download_url = jx.get("item", {}).get("url", None)
-                images = jx.get("item", {}).get("images", [])  # 图集
+                item = jx.get("item", {})
+                
+                # 尝试多个字段获取标题
+                title = item.get("title") or item.get("desc") or result.get("title", "Unknown")
+                download_url = item.get("url", None)
+                images = item.get("images", [])  # 图集
+                
+                logger.info(f"提取的标题: {title}, 是否有视频: {bool(download_url)}, 图片数: {len(images)}")
                 
                 # 判断是视频还是图片集
                 has_video = bool(download_url)
