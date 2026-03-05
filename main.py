@@ -99,8 +99,9 @@ class PlatformParser(Star):
                 logger.info(f"完整API响应: {result}")
                 
                 # 从抖音API响应中提取信息
-                jx = result.get("jx", {})
-                item = jx.get("item", {})
+                data = result.get("data", {})
+                jx = data.get("jx", {})
+                item = data.get("item", {})
                 
                 # 尝试多个字段获取标题
                 title = item.get("title") or item.get("desc") or result.get("title", "Unknown")
