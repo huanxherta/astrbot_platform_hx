@@ -54,19 +54,16 @@ class PlatformParser(Star):
         # 从消息中提取 URL（模糊匹配）
         url_pattern = r'https?://[^\s]+'
         urls = re.findall(url_pattern, message_str)
-        logger.info(f"[auto_parse_video] 检测到 {len(urls)} 个URL")
         
         for url in urls:
             if any(domain in url for domain in supported_domains):
                 video_url = url
-                logger.info(f"[auto_parse_video] 匹配到视频链接: {url}")
+                logger.info(f"[auto_parse_video] 检测到视频链接: {url}")
                 break
         
         if not video_url:
             # 没有检测到视频链接，跳过处理
             return
-        
-        logger.info(f"[auto_parse_video] 自动检测到视频链接: {video_url}")
         
         # 验证URL格式
         try:
